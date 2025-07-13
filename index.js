@@ -1,37 +1,35 @@
-const express = require("express");
-const admin = require("firebase-admin");
+const express = require('express');
+const admin = require('firebase-admin');
 const app = express();
 const port = process.env.PORT || 3000;
 
-const serviceAccount = require("./serviceAccountKey.json");
+const serviceAccount = require('./firebase-service.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://byte-rewards-d9589-default-rtdb.firebaseio.com"
 });
 
-const db = admin.database();
+app.get('/callback', async (req, res) => {
+  const deviceId = req.query.device_id;
+  const cpa = parseInt(req.query.cpa || 0);
 
-app.get("/callback", async (req, res) => {
-  const userId = req.query.user_id;
-  const reward = parseInt(req.query.reward_value || "0");
-
-  if (!userId || !reward) {
-    return res.status(400).send("Missing user_id or reward_value");
+  if (!deviceId || !cpa) {
+    return res.status(400).send('Missing parameters');
   }
 
   try {
-    const userRef = db.ref(`users/${userId}/points`);
-    const snapshot = await userRef.once("value");
+    const ref = admin.database().ref(`users/${deviceId}/points`);
+    const snapshot = await ref.once('value');
     const currentPoints = snapshot.val() || 0;
-    await userRef.set(currentPoints + reward);
-    res.send("Points updated!");
+    await ref.set(currentPoints + cpa);
+    return res.status(200).send('Points updated');
   } catch (error) {
-    console.error("Error updating points:", error);
-    res.status(500).send("Failed to update points");
+    console.error('Error updating points:', error);
+    return res.status(500).send('Internal Server Error');
   }
 });
 
 app.listen(port, () => {
-  console.log(`✅ Pollfish Webhook running on port ${port}`);
+  console.log(`Webhook running on port ${port}`);
 });
